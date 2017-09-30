@@ -1,15 +1,9 @@
-/*
- * Copyright (c) IMS Health 2016
- * Authors:
- *   Oskar Kapala <okapala@pl.imshealth.com>
- *   Szymon Kuryło <skurylo@pl.imshealth.com>
- *   Maciej Jankowski <mjankowski@pl.imshealth.com>
- *
- * This is auto-generated information. Do not edit manually, use https://gitlab.imshealth.com/autocoding/copyright-generator.git instead.
- */
-
 package pl.mjankowski
 
+/**
+  *
+  * @author Maciej Jankowski <maciej.jankowski@wat.edu.pl> 30.09.2017
+  */
 object Profiler{
 
   def profile[T](methodName: String)(op:  => T): T = {

@@ -9,6 +9,11 @@ import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import collection.JavaConverters._
 
+/**
+  *
+  * @author Maciej Jankowski <maciej.jankowski@wat.edu.pl> 30.09.2017
+  */
+
 case class Line(label: String, text: String)
 
 case class NumericLine(label: String, document: Array[Int])
@@ -20,7 +25,7 @@ object NlpUtils {
     val fileContents = Source.fromFile(path)
     val textLines = if (skipHeader) fileContents.getLines.drop(1) else fileContents.getLines
 
-    val lines = textLines.map(s => s.split(",")).map(s => Line(s(1), s(2)))
+    val lines = textLines.map(s => s.split(",")).map(s => Line(s(0), s(1)))
     lines
   }
 

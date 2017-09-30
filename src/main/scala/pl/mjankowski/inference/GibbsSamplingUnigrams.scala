@@ -3,7 +3,12 @@ package pl.mjankowski.inference
 import breeze.linalg.DenseVector
 import breeze.stats.distributions.Multinomial
 
+import scala.collection.mutable.ListBuffer
 
+/**
+  *
+  * @author Maciej Jankowski <maciej.jankowski@wat.edu.pl> 30.09.2017
+  */
 case class LdaStatistics(
                           z: Array[Array[Int]],
                           topicsInDocs: Array[Array[Int]],
@@ -19,7 +24,16 @@ class GibbsSampling extends Estimator {
 
   val r = scala.util.Random
 
-  def inferParameters(data: Array[Array[Int]], V: Int, K: Int, M: Int, burnDownPeriod: Int, alpha: Double, beta: Double): Parameters = {
+  def inferParameters(
+                       data: Array[Array[Int]],
+                       V: Int,
+                       K: Int,
+                       M: Int,
+                       burnDownPeriod: Int,
+                       lag: Int,
+                       noSamples: Int,
+                       alpha: Double,
+                       beta: Double): Parameters = {
 
     val stats = init(data, V, K)
 
@@ -71,7 +85,9 @@ class GibbsSampling extends Estimator {
     var iter = 0
     var counter = 0
 
-    while (counter < burnDownPeriod) {
+    val likelihoods = ListBuffer[Double]()
+
+    while (counter < burnDownPeriod + noSamples * lag) {
       var d: Int = 0
       var i: Int = 0
 
@@ -101,23 +117,20 @@ class GibbsSampling extends Estimator {
       }
       counter += 1
 
-      if(counter % 100 == 0) {
-        val phi = estimatePhi(K = K, V = V, wordsInTopic = wordsInTopics, sumOfWordsInTopic = sumOfWordsInTopic, beta = beta)
-        val theta = estimateTheta(K = K, M = M, topicsInDocs = topicsInDocs, sumOfTopicsInDoc = sumOfTopicsInDocs, alpha = alpha)
-        val likelihood = estimateLikelihood(K = K, V = V, beta = beta, wordsInTopic = wordsInTopics, sumOfWordsInTopic = sumOfWordsInTopic)
-
-        println(s"phi = ${phi(0).mkString(",")}")
-        println(s"theta = ${theta(0).mkString(",")}")
-        println(s"likelihood = ${likelihood}")
+      if(counter > burnDownPeriod &&  counter % lag == 0) {
+        println(counter)
+        likelihoods += estimateLikelihood(K = K, V = V, beta = beta, wordsInTopic = wordsInTopics, sumOfWordsInTopic = sumOfWordsInTopic)
       }
     }
-
     val phi = estimatePhi(K = K, V = V, wordsInTopic = wordsInTopics, sumOfWordsInTopic = sumOfWordsInTopic, beta = beta)
-    val theta = estimateTheta(K=K, M=M, topicsInDocs = topicsInDocs, sumOfTopicsInDoc = sumOfTopicsInDocs, alpha = alpha)
-    val likelihood = estimateLikelihood(K=K, V=V, beta=beta, wordsInTopic = wordsInTopics, sumOfWordsInTopic = sumOfWordsInTopic)
+    val theta = estimateTheta(K = K, M = M, topicsInDocs = topicsInDocs, sumOfTopicsInDoc = sumOfTopicsInDocs, alpha = alpha)
+//    val lik = estimateLikelihood(K = K, V = V, beta = beta, wordsInTopic = wordsInTopics, sumOfWordsInTopic = sumOfWordsInTopic)
 
-    Parameters(phi=phi, theta=theta, likelihood=likelihood)
+    println(s"iter = $iter")
+    Parameters(phi=phi, theta=theta, likelihood=harmonicMean(likelihoods.toList))
   }
+
+  def harmonicMean(l: List[Double]): Double = l.size.toDouble / l.map(d => 1d/d).sum
 
   def init(data: Array[Array[Int]], V: Int, K: Int): LdaStatistics = {
 

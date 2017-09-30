@@ -4,6 +4,10 @@ import breeze.linalg.DenseVector
 import breeze.stats.distributions.Multinomial
 import org.scalatest.FunSuite
 
+/**
+  *
+  * @author Maciej Jankowski <maciej.jankowski@wat.edu.pl> 30.09.2017
+  */
 class SimpleTests extends FunSuite {
 
   test("tralalala") {

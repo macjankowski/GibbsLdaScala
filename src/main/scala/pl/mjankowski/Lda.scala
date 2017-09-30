@@ -4,6 +4,7 @@ import pl.mjankowski.inference.GibbsSampling
 
 /**
   *
+  * @author Maciej Jankowski <maciej.jankowski@wat.edu.pl> 30.09.2017
   */
 
 
