@@ -1,6 +1,6 @@
 package pl.mjankowski
 
-import pl.mjankowski.inference.GibbsSampling
+import pl.mjankowski.inference.GibbsSamplingUnigrams
 
 /**
   *
@@ -12,17 +12,17 @@ case class LdaModel(theta: Array[Array[Double]], phi: Array[Array[Double]])
 
 class Lda {
 
-  val estimator: GibbsSampling = new GibbsSampling
+  val estimator: GibbsSamplingUnigrams = new GibbsSamplingUnigrams
 
   val K = 10
 
   def run(filePath: String): Unit = {
-    val estimator: GibbsSampling = new GibbsSampling
+    val estimator: GibbsSamplingUnigrams = new GibbsSamplingUnigrams
 
     // load data
     val corpus = NlpUtils.loadData(filePath)
     val preprocessed = NlpUtils.preprocess(corpus)
-    val (numericData, dictSize) = NlpUtils.toNumeric(preprocessed)
+    val (numericData, dictSize, dict) = NlpUtils.toNumeric(preprocessed)
 
     val labelless = NlpUtils.forInference(numericData)
 

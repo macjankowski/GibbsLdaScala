@@ -1,7 +1,7 @@
 package pl.mjankowski
 
 import org.scalatest.{FunSuite, Matchers}
-import pl.mjankowski.inference.{GibbsSampling, Parameters}
+import pl.mjankowski.inference.{GibbsSamplingBigrams, GibbsSamplingUnigrams, ParametersBigrams, ParametersUnigrams}
 
 /**
   *
@@ -13,13 +13,14 @@ class TestLda extends FunSuite with Matchers {
   val filePath = "/Users/mjankowski/doc/workspace/data/reducedData.csv"
   val K = 20
 
-  val estimator: GibbsSampling = new GibbsSampling
+  val estimatorUnigrams: GibbsSamplingUnigrams = new GibbsSamplingUnigrams
+  val estimatorBigrams: GibbsSamplingBigrams = new GibbsSamplingBigrams
 
   // load data
   val corpus = NlpUtils.loadData(filePath)
   //  val preprocessed = NlpUtils.preprocess(corpus)
 
-  val (numericData: Array[NumericLine], dictSize) = NlpUtils.toNumeric(corpus.toArray)
+  val (numericData: Array[NumericLine], dictSize, dict) = NlpUtils.toNumeric(corpus.toArray)
 
   val labelless: Array[Array[Int]] = NlpUtils.forInference(numericData)
 
@@ -37,7 +38,7 @@ class TestLda extends FunSuite with Matchers {
 
   test("Init method should correctly initialize parameters") {
 
-    val stats = estimator.init(labelless, dictSize, K)
+    val stats = estimatorUnigrams.init(labelless, dictSize, K)
     println(s"gibbsIterations = ${stats.gibbsIterations}")
 
     val allWordsCount = labelless.map(l => l.length).sum
@@ -56,13 +57,13 @@ class TestLda extends FunSuite with Matchers {
 
   }
 
-  test("infer method should correctly infer parameters of a model") {
+  test("infer unigram topic model method") {
 
     Profiler.profile("Gibbs Sampler") {
 
-      val burnDownPeriod = 1000
+      val burnDownPeriod = 10
 
-      val parameters: Parameters = estimator.inferParameters(
+      val parameters: ParametersUnigrams = estimatorUnigrams.inferParameters(
         data = labelless,
         V = dictSize,
         K = 10,
@@ -71,10 +72,69 @@ class TestLda extends FunSuite with Matchers {
         lag = 100,
         noSamples = 10,
         alpha = 50d / K,
-        beta = 0.1
+        beta = 0.1,
+        dict
       )
 
       println(s"phi = ${parameters.phi(0).mkString(",")}")
+      println(s"theta = ${parameters.theta(0).mkString(",")}")
+      println(s"likelihood = ${parameters.likelihood}")
+    }
+  }
+
+  test("Init for bigrams method should correctly initialize parameters") {
+
+    val stats = estimatorBigrams.init(labelless, dictSize, K)
+    println(s"gibbsIterations = ${stats.gibbsIterations}")
+
+    for{
+      k <- 1 until K
+      pV <- 1 until dictSize
+    } yield {
+      stats.wordsForWordInTopic(k)(pV).sum should be (stats.sumOfWordsForWordInTopic(k)(pV))
+    }
+
+    for{
+      k <- 1 until K
+    } yield {
+      stats.topicsInDocs(k).sum should be (stats.sumOfTopicsInDocs(k))
+    }
+
+    val allWordsCount = labelless.map(l => l.length).sum
+
+    allWordsCount should be(stats.gibbsIterations)
+
+    val sum: Int = stats.wordsForWordInTopic.map(a => a.map(b => b.sum).sum).sum
+
+    sum should be(allWordsCount)
+
+    stats.topicsInDocs.map(d => d.sum).sum should be(allWordsCount)
+
+    stats.sumOfTopicsInDocs.sum should be(allWordsCount)
+
+    stats.sumOfWordsForWordInTopic.map((l: Array[Int]) => l.sum).sum should be(allWordsCount)
+  }
+
+  test("infer bigram topic model method") {
+
+    Profiler.profile("Gibbs Sampler - Bigrams") {
+
+      val burnDownPeriod = 0
+
+      val parameters: ParametersBigrams = estimatorBigrams.inferParameters(
+        data = labelless,
+        V = dictSize,
+        K = 10,
+        M = labelless.length,
+        burnDownPeriod = burnDownPeriod,
+        lag = 1,
+        noSamples = 1,
+        alpha = 50d / K,
+        beta = 0.1,
+        dict
+      )
+
+      println(s"phi = ${parameters.phi(0)(1).mkString(",")}")
       println(s"theta = ${parameters.theta(0).mkString(",")}")
       println(s"likelihood = ${parameters.likelihood}")
     }

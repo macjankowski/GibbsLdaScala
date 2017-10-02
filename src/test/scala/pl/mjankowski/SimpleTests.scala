@@ -37,4 +37,29 @@ class SimpleTests extends FunSuite {
     println((2 + 0.1)/3)
   }
 
+  test("arrays"){
+
+    val a = Array.ofDim[Int](10, 1000, 1000)
+    a(2)(10)(5) += 1
+
+    println(a(2)(10)(5))
+
+  }
+
+  test("flatMap"){
+
+    val V = 5
+    val K = 10
+
+    val right = for{
+      j <- 1 until V
+      k <- 1 until K
+    } yield {
+      (j,k)
+    }
+
+    println(right.mkString(","))
+
+  }
+
 }

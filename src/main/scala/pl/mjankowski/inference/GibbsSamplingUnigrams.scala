@@ -9,7 +9,7 @@ import scala.collection.mutable.ListBuffer
   *
   * @author Maciej Jankowski <maciej.jankowski@wat.edu.pl> 30.09.2017
   */
-case class LdaStatistics(
+case class LdaUnigramsStatistics(
                           z: Array[Array[Int]],
                           topicsInDocs: Array[Array[Int]],
                           sumOfTopicsInDocs: Array[Int],
@@ -17,10 +17,10 @@ case class LdaStatistics(
                           sumOfWordsInTopic: Array[Int],
                           gibbsIterations: Int)
 
-case class Parameters(phi: Array[Array[Double]], theta: Array[Array[Double]], likelihood: Double)
+case class ParametersUnigrams(phi: Array[Array[Double]], theta: Array[Array[Double]], likelihood: Double)
 
 
-class GibbsSampling extends Estimator {
+class GibbsSamplingUnigrams extends Estimator {
 
   val r = scala.util.Random
 
@@ -33,7 +33,8 @@ class GibbsSampling extends Estimator {
                        lag: Int,
                        noSamples: Int,
                        alpha: Double,
-                       beta: Double): Parameters = {
+                       beta: Double,
+                       dict: Map[Int, String]): ParametersUnigrams = {
 
     val stats = init(data, V, K)
 
@@ -117,7 +118,8 @@ class GibbsSampling extends Estimator {
       }
       counter += 1
 
-      if(counter > burnDownPeriod &&  counter % lag == 0) {
+      //if(counter > burnDownPeriod &&  counter % lag == 0) {
+      if(counter > burnDownPeriod && counter % lag == 0){
         println(counter)
         likelihoods += estimateLikelihood(K = K, V = V, beta = beta, wordsInTopic = wordsInTopics, sumOfWordsInTopic = sumOfWordsInTopic)
       }
@@ -126,13 +128,15 @@ class GibbsSampling extends Estimator {
     val theta = estimateTheta(K = K, M = M, topicsInDocs = topicsInDocs, sumOfTopicsInDoc = sumOfTopicsInDocs, alpha = alpha)
 //    val lik = estimateLikelihood(K = K, V = V, beta = beta, wordsInTopic = wordsInTopics, sumOfWordsInTopic = sumOfWordsInTopic)
 
+    likelihoods.mkString(",")
+
     println(s"iter = $iter")
-    Parameters(phi=phi, theta=theta, likelihood=harmonicMean(likelihoods.toList))
+    ParametersUnigrams(phi=phi, theta=theta, likelihood=harmonicMean(likelihoods.toList))
   }
 
-  def harmonicMean(l: List[Double]): Double = l.size.toDouble / l.map(d => 1d/d).sum
 
-  def init(data: Array[Array[Int]], V: Int, K: Int): LdaStatistics = {
+
+  def init(data: Array[Array[Int]], V: Int, K: Int): LdaUnigramsStatistics = {
 
     var iter = 0
 
@@ -174,7 +178,7 @@ class GibbsSampling extends Estimator {
       d += 1
     }
 
-    LdaStatistics(
+    LdaUnigramsStatistics(
       z = z,
       topicsInDocs = topicsInDocs,
       sumOfTopicsInDocs = sumOfTopicsInDocs,
@@ -201,21 +205,7 @@ class GibbsSampling extends Estimator {
     phi
   }
 
-  def estimateTheta(K: Int, M: Int, topicsInDocs: Array[Array[Int]], alpha: Double, sumOfTopicsInDoc: Array[Int]): Array[Array[Double]] = {
 
-    val theta = Array.ofDim[Double](M, K)
-
-    var d = 0
-    while (d < M) {
-      var k = 0
-      while (k < K) {
-        theta(d)(k) = (topicsInDocs(d)(k) + alpha) / (sumOfTopicsInDoc(d) + (K * alpha))
-        k += 1
-      }
-      d += 1
-    }
-    theta
-  }
 
   def estimateLikelihood(K: Int, V: Int, beta: Double, wordsInTopic: Array[Array[Int]], sumOfWordsInTopic: Array[Int]) = {
 
@@ -233,7 +223,7 @@ class GibbsSampling extends Estimator {
         v += 1
       }
 
-      right += subsum - lgamma(sumOfWordsInTopic(k) + V * beta)
+      right += (subsum - lgamma(sumOfWordsInTopic(k) + V * beta))
       k += 1
     }
 

@@ -40,7 +40,7 @@ object NlpUtils {
     data.map(s => Line(s.label, processLine(s.text))).toArray
   }
 
-  def toNumeric(data: Array[Line]): (Array[NumericLine], Int) = {
+  def toNumeric(data: Array[Line]): (Array[NumericLine], Int, Map[Int, String]) = {
 
     val dict = mutable.Set[String]()
 
@@ -58,7 +58,7 @@ object NlpUtils {
     val numericData = data.map(line => processLine(line))
     val dictSize = dict.size
 
-    (numericData, dictSize)
+    (numericData, dictSize, wordToIndex.map(_.swap))
   }
 
   def forInference(data: Array[NumericLine]): Array[Array[Int]] = data.map(line => line.document)
