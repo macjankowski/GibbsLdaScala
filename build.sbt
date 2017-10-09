@@ -24,6 +24,8 @@ libraryDependencies ++= Seq(
   // be compatible with the Apache License. No GPL code, as best I know.
   "org.scalanlp" %% "breeze-natives" % "0.13.2",
 
-  "au.com.bytecode" % "opencsv" % "2.4"
+  "au.com.bytecode" % "opencsv" % "2.4",
+
+  "com.esotericsoftware" % "kryo" % "4.0.0"
 
 )

@@ -1,6 +1,7 @@
 package pl.mjankowski
 
 import breeze.linalg.DenseVector
+import breeze.numerics.digamma
 import breeze.stats.distributions.Multinomial
 import org.scalatest.FunSuite
 
@@ -59,6 +60,13 @@ class SimpleTests extends FunSuite {
     }
 
     println(right.mkString(","))
+
+  }
+
+  test("digamma"){
+    for(i <- (0 until 10)){
+      println(s"digamma($i) = ${digamma(i)}")
+    }
 
   }
 

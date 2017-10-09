@@ -8,6 +8,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.io.Source
 import collection.JavaConverters._
+import scala.util.Random
 
 /**
   *
@@ -40,6 +41,10 @@ object NlpUtils {
     data.map(s => Line(s.label, processLine(s.text))).toArray
   }
 
+  def addEmptySymbolAdTheBeginning(data: Iterator[Line]): Array[Line] = {
+    data.map(s => Line(s.label, "<s>"+s.text)).toArray
+  }
+
   def toNumeric(data: Array[Line]): (Array[NumericLine], Int, Map[Int, String]) = {
 
     val dict = mutable.Set[String]()
@@ -47,7 +52,7 @@ object NlpUtils {
 
     data.foreach(l => dict ++= l.text.split(" "))
 
-    val wordToIndex = dict.zipWithIndex.toMap
+    val wordToIndex = Random.shuffle(dict.toList).zipWithIndex.toMap
 
     def processSentence(sent: Array[String]): Array[Int] = sent.map(w => wordToIndex(w))
 

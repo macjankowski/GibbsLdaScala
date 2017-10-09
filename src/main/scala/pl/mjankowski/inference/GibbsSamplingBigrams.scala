@@ -1,10 +1,14 @@
 package pl.mjankowski.inference
 
 import breeze.linalg.DenseVector
+import breeze.numerics._
 import breeze.stats.distributions.Multinomial
 import pl.mjankowski.Profiler
 
 import scala.collection.mutable.ListBuffer
+import pl.mjankowski.inference.Hyperparams._
+import Params._
+
 
 /**
   *
@@ -12,16 +16,32 @@ import scala.collection.mutable.ListBuffer
   */
 
 case class LdaBigramsStatistics(
-                          z: Array[Array[Int]],
-                          topicsInDocs: Array[Array[Int]],
-                          sumOfTopicsInDocs: Array[Int],
-                          wordsForWordInTopic: Array[Array[Array[Int]]], // K x V x V
-                          sumOfWordsForWordInTopic: Array[Array[Int]], // K x V
-                          gibbsIterations: Int)
+                                 z: Array[Array[Int]],
+                                 topicsInDocs: Array[Array[Int]],
+                                 sumOfTopicsInDocs: Array[Int],
+                                 wordsForWordInTopic: Array[Array[Array[Int]]], // K x V x V
+                                 sumOfWordsForWordInTopic: Array[Array[Int]], // K x V
+                                 gibbsIterations: Int)
 
-case class ParametersBigrams(phi: Array[Array[Array[Double]]], theta: Array[Array[Double]], likelihood: Double)
+case class InterStats(
+                       topicsInDocs: Array[Array[Int]],
+                       sumOfTopicsInDocs: Array[Int],
+                       wordsForWordInTopic: Array[Array[Array[Int]]], // K x V x V
+                       sumOfWordsForWordInTopic: Array[Array[Int]]) {
 
-class GibbsSamplingBigrams extends Estimator{
+  def deepCopy = {
+    InterStats(
+      topicsInDocs = topicsInDocs.map(a => a.clone),
+      sumOfTopicsInDocs = sumOfTopicsInDocs.clone(),
+      wordsForWordInTopic = wordsForWordInTopic.map(a => a.clone()),
+      sumOfWordsForWordInTopic = sumOfWordsForWordInTopic.clone()
+    )
+  }
+}
+
+case class ParametersBigrams(phi: Array[Array[Array[Double]]], theta: Array[Array[Double]], likelihood: Double, alpha: Array[Double])
+
+class GibbsSamplingBigrams extends Estimator {
 
   val r = scala.util.Random
 
@@ -33,7 +53,7 @@ class GibbsSamplingBigrams extends Estimator{
                        burnDownPeriod: Int,
                        lag: Int,
                        noSamples: Int,
-                       alpha: Double,
+                       alphaInit: Array[Double],
                        beta: Double,
                        dict: Map[Int, String]): ParametersBigrams = {
 
@@ -44,6 +64,10 @@ class GibbsSamplingBigrams extends Estimator{
     val wordsForWordInTopic = stats.wordsForWordInTopic
     val sumOfWordsForWordInTopic = stats.sumOfWordsForWordInTopic
     val z = stats.z
+    var alpha: Array[Double] = alphaInit
+//    var beta: Array[Double] = betaInit
+    var alphaSum: Double = alphaInit.sum
+//    var betaSum: Double = betaInit.sum
 
     def decr(oldTopic: Int, word: Int, previousWord: Int, d: Int) = {
       topicsInDocs(d)(oldTopic) -= 1
@@ -66,7 +90,8 @@ class GibbsSamplingBigrams extends Estimator{
       sumOfWordsForWordInTopic(newTopic)(previousWord) += 1
     }
 
-    def prepareDistribution(K: Int, word: Int, previousWord: Int, alpha: Double, beta: Double, V: Int, d: Int): Array[Double] = {
+    def prepareDistribution(K: Int, word: Int, previousWord: Int,
+                            V: Int, d: Int): Array[Double] = {
 
       var k = 0
       val distribution: Array[Double] = new Array[Double](K)
@@ -74,8 +99,12 @@ class GibbsSamplingBigrams extends Estimator{
       while (k < K) {
 
         val left = (wordsForWordInTopic(k)(previousWord)(word) + beta) / (sumOfWordsForWordInTopic(k)(previousWord) + V * beta)
-        val right = (topicsInDocs(d)(k) + alpha) /// (sumOfTopicsInDocs(d) + K * alpha)
+        val right = (topicsInDocs(d)(k) + alpha(k)) /// (sumOfTopicsInDocs(d) + K * alpha)
         distribution(k) = left * right
+
+        if(distribution(k).isNaN){
+          println("NaN")
+        }
 
         k += 1
       }
@@ -83,27 +112,23 @@ class GibbsSamplingBigrams extends Estimator{
     }
 
 
-
     var iter = 0
-    var counter = 0
 
     val likelihoods = ListBuffer[Double]()
 
-    while (counter < burnDownPeriod + noSamples * lag) {
+    def gibbsSingleIter = {
       var d: Int = 0
-      var i: Int = 0
-
       while (d < M) {
         val tokenCount = data(d).length
-        i = 1
+        var i: Int = 1
         while (i < tokenCount) {
-          val previousWord = data(d)(i-1)
+          val previousWord = data(d)(i - 1)
           val word = data(d)(i)
           val oldTopic: Int = z(d)(i)
 
           decr(oldTopic, word, previousWord, d)
 
-          val distribution = prepareDistribution(K = K, word = word, previousWord = previousWord, alpha = alpha, beta = beta, V = V, d = d)
+          val distribution = prepareDistribution(K = K, word = word, previousWord = previousWord, V = V, d = d)
 
           val mult = Multinomial(DenseVector(distribution))
 
@@ -118,111 +143,126 @@ class GibbsSamplingBigrams extends Estimator{
 
         d += 1
       }
-      counter += 1
 
-      if(counter > burnDownPeriod &&  counter % lag == 0) {
-        println(counter)
-//        likelihoods += estimateLikelihood(K = K, V = V, beta = beta, wordsForWordInTopic = wordsForWordInTopic, sumOfWordsForWordInTopic = sumOfWordsForWordInTopic)
-      }
     }
-    val phi = estimatePhi(K = K, V = V, wordsForWordInTopic = wordsForWordInTopic, sumOfWordsForWordInTopic = sumOfWordsForWordInTopic, beta = beta)
-    val theta = estimateTheta(K = K, M = M, topicsInDocs = topicsInDocs, sumOfTopicsInDoc = sumOfTopicsInDocs, alpha = alpha)
 
+
+    var burnDownCounter = 0
+    while (burnDownCounter < 1000) {
+      gibbsSingleIter
+      burnDownCounter += 1
+    }
+    println("Finished BurnDownPeriod")
+
+    var interStatsList = ListBuffer[InterStats]()
+    var samplingCounter = 0
+    while (samplingCounter <  100) {
+
+      (0 until 50).foreach { i =>
+        println(s"samplingCounter = $samplingCounter, i=$i")
+        gibbsSingleIter
+        if(i % 5 == 0){
+          interStatsList.append(InterStats(
+            topicsInDocs = topicsInDocs.map(a => a.clone),
+            sumOfTopicsInDocs = sumOfTopicsInDocs.clone(),
+            wordsForWordInTopic = wordsForWordInTopic.map(a => a.clone()),
+            sumOfWordsForWordInTopic = sumOfWordsForWordInTopic.clone()
+          ))
+        }
+      }
+
+      val S: Array[InterStats] = interStatsList.toArray
+      alpha = nextAlpha(S, M, K, alpha)
+      alphaSum = alpha.sum
+
+      samplingCounter += 1
+    }
+
+    val phi = estimatePhi(K = K, V = V, wordsForWordInTopic = wordsForWordInTopic,
+      sumOfWordsForWordInTopic = sumOfWordsForWordInTopic, beta = beta)
+    val theta = estimateTheta(K = K, M = M, topicsInDocs = topicsInDocs, sumOfTopicsInDoc = sumOfTopicsInDocs,
+      alpha = alpha, alphaSum = alphaSum)
+
+    println("Calculating likelihood")
     val likelihood: Double = Profiler.profile("Gibbs Sampler - Bigrams, likelihood") {
       estimateLikelihood(K = K, V = V, beta = beta, wordsForWordInTopic = wordsForWordInTopic,
         sumOfWordsForWordInTopic = sumOfWordsForWordInTopic, dict = dict)
     }
 
     println(s"iter = $iter")
-    ParametersBigrams(phi=phi, theta=theta, likelihood=likelihood)
+    ParametersBigrams(phi = phi, theta = theta, likelihood = likelihood, alpha = alpha)
   }
 
-  def estimatePhi(K: Int, V: Int, wordsForWordInTopic: Array[Array[Array[Int]]], beta: Double, sumOfWordsForWordInTopic: Array[Array[Int]]):
-      Array[Array[Array[Double]]] = {
 
-    val phi = Array.ofDim[Double](K, V, V)
 
-    var k = 0
-    while (k < K) {
-      var pV = 0
-      while (pV < V - 1) {
-        var v = 1
-        while(v < V){
-          phi(k)(pV)(v) = (wordsForWordInTopic(k)(pV)(v) + beta) / (sumOfWordsForWordInTopic(k)(pV) + (V * beta))
-          v += 1
-        }
-        pV += 1
-      }
-      k += 1
-    }
-    phi
-  }
 
   def estimateLikelihood(K: Int, V: Int, beta: Double, wordsForWordInTopic: Array[Array[Array[Int]]],
                          sumOfWordsForWordInTopic: Array[Array[Int]], dict: Map[Int, String]) = {
 
-    import breeze.numerics._
 
-    val left: Double = K * (lgamma(V * beta) - V * lgamma(beta))
+//    val left: Double = V * K * ((lgamma(betaSum) - (0 until V).map(i => lgamma(beta(i))).sum))
+    val left: Double = V * K * ((lgamma(V * beta) - V * lgamma(beta)))
+
 
     def innerLoop(j: Int, k: Int): Double = {
 
       val sum = wordsForWordInTopic(k)(j).sum
 
-      val numerator = (1 until V).map{i =>
+      val lgammas = (0 until V).map { i =>
         lgamma(wordsForWordInTopic(k)(j)(i) + beta)
-      }.sum
+      }
+      val numerator = lgammas.sum
       val denominator = lgamma(sumOfWordsForWordInTopic(k)(j) + V * beta)
       val ret = numerator - denominator
       ret
     }
 
-    val right = for{
-      j <- 1 until V
-      k <- 1 until K
+    val right = for {
+      j <- 0 until V
+      k <- 0 until K
     } yield {
-      val v = innerLoop(j,k)
+      val v = innerLoop(j, k)
       v
     }
 
     left + right.sum
   }
 
-//  def estimateLikelihood(K: Int, V: Int, beta: Double, wordsForWordInTopic: Array[Array[Array[Int]]], sumOfWordsForWordInTopic: Array[Array[Int]]) = {
-//
-//    import breeze.numerics._
-//
-//    val left = K * (lgamma(V * beta) - V * lgamma(beta))
-//
-//    def innerLoop(j: Int, k: Int): Double = {
-//
-//      var v = 0
-//      var subsum = 0d
-//      while (v < V) {
-//        subsum += lgamma(wordsForWordInTopic(k)(j)(v) + beta)
-//        v += 1
-//      }
-//
-//      (subsum - lgamma(sumOfWordsForWordInTopic(k)(j) + V * beta))
-//
-//    }
-//
-//
-//    var sumOverJ = 0d
-//    var j = 0
-//    while(j < V) {
-//      var k = 0
-//      var sumOverK = 0d
-//      while (k < K) {
-//        sumOverK += innerLoop(j,k)
-//        k += 1
-//      }
-//      sumOverJ += sumOverK
-//      j+=1
-//    }
-//
-//    left + sumOverJ
-//  }
+  //  def estimateLikelihood(K: Int, V: Int, beta: Double, wordsForWordInTopic: Array[Array[Array[Int]]], sumOfWordsForWordInTopic: Array[Array[Int]]) = {
+  //
+  //    import breeze.numerics._
+  //
+  //    val left = K * (lgamma(V * beta) - V * lgamma(beta))
+  //
+  //    def innerLoop(j: Int, k: Int): Double = {
+  //
+  //      var v = 0
+  //      var subsum = 0d
+  //      while (v < V) {
+  //        subsum += lgamma(wordsForWordInTopic(k)(j)(v) + beta)
+  //        v += 1
+  //      }
+  //
+  //      (subsum - lgamma(sumOfWordsForWordInTopic(k)(j) + V * beta))
+  //
+  //    }
+  //
+  //
+  //    var sumOverJ = 0d
+  //    var j = 0
+  //    while(j < V) {
+  //      var k = 0
+  //      var sumOverK = 0d
+  //      while (k < K) {
+  //        sumOverK += innerLoop(j,k)
+  //        k += 1
+  //      }
+  //      sumOverJ += sumOverK
+  //      j+=1
+  //    }
+  //
+  //    left + sumOverJ
+  //  }
 
   def init(data: Array[Array[Int]], V: Int, K: Int): LdaBigramsStatistics = {
 
@@ -245,7 +285,7 @@ class GibbsSamplingBigrams extends Estimator{
       z(d) = new Array[Int](tokenCount)
       i = 1
       while (i < tokenCount) {
-        val previousWord = data(d)(i-1)
+        val previousWord = data(d)(i - 1)
         val word = data(d)(i)
         val k = r.nextInt(K)
         z(d)(i) = k

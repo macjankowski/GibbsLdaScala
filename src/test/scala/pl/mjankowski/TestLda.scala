@@ -11,7 +11,7 @@ class TestLda extends FunSuite with Matchers {
 
   //  val filePath = "/Users/mjankowski/doc/workspace/lda_gibbs_R/apps_desc_train_ASCII.csv"
   val filePath = "/Users/mjankowski/doc/workspace/data/reducedData.csv"
-  val K = 20
+  val K = 10
 
   val estimatorUnigrams: GibbsSamplingUnigrams = new GibbsSamplingUnigrams
   val estimatorBigrams: GibbsSamplingBigrams = new GibbsSamplingBigrams
@@ -19,8 +19,9 @@ class TestLda extends FunSuite with Matchers {
   // load data
   val corpus = NlpUtils.loadData(filePath)
   //  val preprocessed = NlpUtils.preprocess(corpus)
+  val preprocessed = NlpUtils.addEmptySymbolAdTheBeginning(corpus)
 
-  val (numericData: Array[NumericLine], dictSize, dict) = NlpUtils.toNumeric(corpus.toArray)
+  val (numericData: Array[NumericLine], dictSize, dict) = NlpUtils.toNumeric(preprocessed)
 
   val labelless: Array[Array[Int]] = NlpUtils.forInference(numericData)
 
@@ -61,7 +62,7 @@ class TestLda extends FunSuite with Matchers {
 
     Profiler.profile("Gibbs Sampler") {
 
-      val burnDownPeriod = 10
+      val burnDownPeriod = 1000
 
       val parameters: ParametersUnigrams = estimatorUnigrams.inferParameters(
         data = labelless,
@@ -102,7 +103,7 @@ class TestLda extends FunSuite with Matchers {
 
     val allWordsCount = labelless.map(l => l.length).sum
 
-    allWordsCount should be(stats.gibbsIterations)
+//    allWordsCount should be(stats.gibbsIterations)
 
     val sum: Int = stats.wordsForWordInTopic.map(a => a.map(b => b.sum).sum).sum
 
@@ -119,7 +120,10 @@ class TestLda extends FunSuite with Matchers {
 
     Profiler.profile("Gibbs Sampler - Bigrams") {
 
-      val burnDownPeriod = 0
+      val burnDownPeriod = 10
+      val alphaInit = (0 until K).map(i => 50d / K).toArray
+
+      println(alphaInit.mkString(","))
 
       val parameters: ParametersBigrams = estimatorBigrams.inferParameters(
         data = labelless,
@@ -129,13 +133,14 @@ class TestLda extends FunSuite with Matchers {
         burnDownPeriod = burnDownPeriod,
         lag = 1,
         noSamples = 1,
-        alpha = 50d / K,
+        alphaInit = alphaInit,
         beta = 0.1,
-        dict
+        dict = dict
       )
 
       println(s"phi = ${parameters.phi(0)(1).mkString(",")}")
       println(s"theta = ${parameters.theta(0).mkString(",")}")
+      println(s"alpha = ${parameters.alpha.mkString(",")}")
       println(s"likelihood = ${parameters.likelihood}")
     }
   }
