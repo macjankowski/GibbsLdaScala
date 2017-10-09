@@ -1,4 +1,4 @@
-package pl.mjankowski.inference
+package pl.mjankowski.inference.bigrams
 
 import breeze.numerics.digamma
 
@@ -6,15 +6,14 @@ import breeze.numerics.digamma
   *
   * @author Maciej Jankowski <maciej.jankowski@wat.edu.pl>
   */
-class Hyperparams(
-                   alpha: Array[Double],
-                   alphaSum: Double,
-                   beta: Double
+class Hyperparameters (
+                   var alpha: Array[Double],
+                   var alphaSum: Double,
+                   var beta: Double
                  ) {
 
-  def updateAlpha(stats: Array[InterStats], M: Int, K: Int): Array[Double] = {
+  def updateAlpha(stats: Array[Statistics], M: Int, K: Int) = {
 
-    val alphaSum = alpha.sum
     def kThElem(k: Int): Double = {
       val numerator = for {
         s <- (0 until stats.length)
@@ -55,10 +54,9 @@ class Hyperparams(
     }
 
     val newAlpha = (0 until K).map(k => alpha(k) * kThElem(k)).toArray
-//    if(newAlpha.exists(a => a.isNaN)){
-      println(s"newAlpha = ${newAlpha.mkString(",")}")
-//    }
-    newAlpha
+    println(s"newAlpha = ${newAlpha.mkString(",")}")
+    alpha = newAlpha
+    alphaSum = alpha.sum
   }
 
 //  def nextBeta(stats: Array[InterStats], M: Int, K: Int, beta: Array[Double]): Array[Double] = {

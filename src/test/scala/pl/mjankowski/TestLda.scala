@@ -1,7 +1,9 @@
 package pl.mjankowski
 
 import org.scalatest.{FunSuite, Matchers}
-import pl.mjankowski.inference.{GibbsSamplingBigrams, GibbsSamplingUnigrams, ParametersBigrams, ParametersUnigrams}
+import pl.mjankowski.inference._
+import pl.mjankowski.inference.bigrams.{GibbsSamplingBigrams, Hyperparameters, OutputData, Statistics}
+import pl.mjankowski.inference.unigrams.{GibbsSamplingUnigrams, ParametersUnigrams}
 
 /**
   *
@@ -85,8 +87,14 @@ class TestLda extends FunSuite with Matchers {
 
   test("Init for bigrams method should correctly initialize parameters") {
 
-    val stats = estimatorBigrams.init(labelless, dictSize, K)
-    println(s"gibbsIterations = ${stats.gibbsIterations}")
+    val in = InputData(data = labelless,
+      V = dictSize,
+      K = 10,
+      M = labelless.length,
+      dict = dict)
+
+    val stats = Statistics.create(in)
+//    println(s"gibbsIterations = ${stats.gibbsIterations}")
 
     for{
       k <- 1 until K
@@ -123,24 +131,38 @@ class TestLda extends FunSuite with Matchers {
       val burnDownPeriod = 10
       val alphaInit = (0 until K).map(i => 50d / K).toArray
 
+      val algParams = AlgorithmParameters(
+        burnDownPeriod = burnDownPeriod,
+        lag = 1,
+        noSamples = 1
+      )
+
       println(alphaInit.mkString(","))
 
-      val parameters: ParametersBigrams = estimatorBigrams.inferParameters(
-        data = labelless,
+      val in: InputData = InputData(data = labelless,
         V = dictSize,
         K = 10,
         M = labelless.length,
-        burnDownPeriod = burnDownPeriod,
-        lag = 1,
-        noSamples = 1,
-        alphaInit = alphaInit,
-        beta = 0.1,
-        dict = dict
+        dict = dict)
+
+      val stats: Statistics = Statistics.create(in)
+
+      val h: Hyperparameters = new Hyperparameters(
+        alpha = alphaInit,
+        alphaSum = alphaInit.sum,
+        beta = 0.1
+      )
+
+      val parameters: OutputData = estimatorBigrams.inferParameters(
+        inputData = in,
+        algParams = algParams,
+        hyperparameters = h,
+        stats = stats
       )
 
       println(s"phi = ${parameters.phi(0)(1).mkString(",")}")
       println(s"theta = ${parameters.theta(0).mkString(",")}")
-      println(s"alpha = ${parameters.alpha.mkString(",")}")
+      println(s"alpha = ${h.alpha.mkString(",")}")
       println(s"likelihood = ${parameters.likelihood}")
     }
   }

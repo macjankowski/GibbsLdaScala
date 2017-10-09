@@ -1,7 +1,8 @@
-package pl.mjankowski.inference
+package pl.mjankowski.inference.unigrams
 
 import breeze.linalg.DenseVector
 import breeze.stats.distributions.Multinomial
+import pl.mjankowski.inference.Estimator
 
 import scala.collection.mutable.ListBuffer
 

@@ -1,6 +1,6 @@
 package pl.mjankowski
 
-import pl.mjankowski.inference.GibbsSamplingUnigrams
+import pl.mjankowski.inference.unigrams.GibbsSamplingUnigrams
 
 /**
   *
