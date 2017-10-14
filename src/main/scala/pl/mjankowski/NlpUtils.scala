@@ -21,6 +21,16 @@ case class NumericLine(label: String, document: Array[Int])
 
 object NlpUtils {
 
+  def expandUciData(lines: Array[UciLine]): Array[Array[Int]] = {
+    val groupped: Map[Int, Array[UciLine]] = lines.groupBy(l => l.docId)
+    val mappedDocs: Map[Int, Array[Int]] = groupped.map{ case(docId, l) =>
+      (docId, l.flatMap(line => (0 until line.wordCount).map(_ => line.wordId)))
+    }
+
+    val asArray: Array[Array[Int]] = mappedDocs.map{ case (_, a) => a}.toArray
+    asArray
+  }
+
   def loadData(path: String, skipHeader: Boolean = true): Iterator[Line] = {
 
     val fileContents = Source.fromFile(path)

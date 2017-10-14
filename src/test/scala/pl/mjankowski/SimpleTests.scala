@@ -5,6 +5,8 @@ import breeze.numerics.digamma
 import breeze.stats.distributions.Multinomial
 import org.scalatest.FunSuite
 
+import scala.collection.immutable
+
 /**
   *
   * @author Maciej Jankowski <maciej.jankowski@wat.edu.pl> 30.09.2017
@@ -68,6 +70,11 @@ class SimpleTests extends FunSuite {
       println(s"digamma($i) = ${digamma(i)}")
     }
 
+  }
+
+  test("digamma"){
+    val l = List(List(1,2), List(3,5), List(3,2,6))
+    val l2: immutable.Seq[Int] = l.flatten
   }
 
 }

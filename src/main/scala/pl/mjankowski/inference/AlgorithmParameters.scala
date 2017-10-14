@@ -8,4 +8,5 @@ case class AlgorithmParameters(
                            burnDownPeriod: Int,
                            lag: Int,
                            noSamples: Int,
+                           noSamplesForAlpha: Int
                          )

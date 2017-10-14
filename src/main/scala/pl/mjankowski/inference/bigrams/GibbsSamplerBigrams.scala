@@ -44,7 +44,7 @@ object GibbsSamplerBigrams {
         val word = in.data(d)(i)
         val oldTopic: Int = s.z(d)(i)
 
-        s.decr(oldTopic, word, previousWord, d)
+        s.decr(oldTopic=oldTopic, word=word, previousWord=previousWord, d=d)
 
         val distribution = prepareDistribution(in = in, word = word, previousWord = previousWord, d = d,
           s = s, h = h)
@@ -54,7 +54,7 @@ object GibbsSamplerBigrams {
         val newTopic: Int = mult.sample(1)(0)
         s.z(d)(i) = newTopic
 
-        s.incr(newTopic, word, previousWord, d)
+        s.incr(newTopic=newTopic, word=word, previousWord=previousWord, d=d)
 
         i += 1
       }

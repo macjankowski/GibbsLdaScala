@@ -9,11 +9,20 @@ import pl.mjankowski.inference.InputData
   */
 object Parameters {
 
+//  def printTop10Words(estimators: OutputData, in: InputData) = {
+//
+//    for(i <- (0 until in.K)){
+//      estimators.phi
+//    }
+//  }
+
   def apply(in: InputData, s: Statistics, h: Hyperparameters): OutputData = {
 
     val phi = estimatePhi(in = in, s = s, h = h)
     val theta = estimateTheta(in = in, s = s, h = h)
     val likelihood = estimateLikelihood(in = in, s = s, h = h)
+
+
 
     OutputData(
       phi = phi,

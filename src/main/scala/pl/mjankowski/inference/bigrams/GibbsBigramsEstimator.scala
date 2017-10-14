@@ -1,5 +1,6 @@
 package pl.mjankowski.inference.bigrams
 
+import pl.mjankowski.Profiler
 import pl.mjankowski.inference.{AlgorithmParameters, Estimator, InputData}
 
 import scala.collection.mutable.ListBuffer
@@ -19,19 +20,22 @@ class GibbsSamplingBigrams extends Estimator {
                        hyperparameters: Hyperparameters,
                        stats: Statistics): OutputData = {
 
+    Profiler.profile(s"Burndown period. No. iterations ${algParams.burnDownPeriod}") {
 
-    var burnDownCounter = 0
-    while (burnDownCounter < 1000) {
-      GibbsSamplerBigrams.gibbsSingleIter(in = inputData, s = stats, h = hyperparameters)
-      burnDownCounter += 1
+      var burnDownCounter = 0
+      while (burnDownCounter < algParams.burnDownPeriod) {
+        println(s"Burn down = $burnDownCounter")
+        GibbsSamplerBigrams.gibbsSingleIter(in = inputData, s = stats, h = hyperparameters)
+        burnDownCounter += 1
+      }
+      println("Finished BurnDownPeriod")
     }
-    println("Finished BurnDownPeriod")
 
-    val interStatsList = ListBuffer[Statistics]()
     var samplingCounter = 0
     while (samplingCounter < 100) {
 
-      (0 until 50).foreach { i =>
+      val interStatsList = ListBuffer[Statistics]()
+      (0 until algParams.noSamplesForAlpha).foreach { i =>
         println(s"samplingCounter = $samplingCounter, i=$i")
         GibbsSamplerBigrams.gibbsSingleIter(in = inputData, s = stats, h = hyperparameters)
 

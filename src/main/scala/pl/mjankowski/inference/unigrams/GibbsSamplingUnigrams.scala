@@ -66,21 +66,7 @@ class GibbsSamplingUnigrams extends Estimator {
       sumOfWordsInTopic(newTopic) += 1
     }
 
-    def prepareDistribution(K: Int, word: Int, alpha: Double, beta: Double, V: Int, d: Int): Array[Double] = {
 
-      var k = 0
-      val distribution: Array[Double] = new Array[Double](K)
-
-      while (k < K) {
-
-        val left = (wordsInTopics(k)(word) + beta) / (sumOfWordsInTopic(k) + V * beta)
-        val right = (topicsInDocs(d)(k) + alpha) /// (sumOfTopicsInDocs(d) + K * alpha)
-        distribution(k) = left * right
-
-        k += 1
-      }
-      distribution
-    }
 
 
 
@@ -90,6 +76,7 @@ class GibbsSamplingUnigrams extends Estimator {
     val likelihoods = ListBuffer[Double]()
 
     while (counter < burnDownPeriod + noSamples * lag) {
+      println(s"cunter = $counter")
       var d: Int = 0
       var i: Int = 0
 
@@ -102,7 +89,9 @@ class GibbsSamplingUnigrams extends Estimator {
 
           decr(oldTopic, word, d)
 
-          val distribution = prepareDistribution(K = K, word = word, alpha = alpha, beta = beta, V = V, d = d)
+          val distribution = GibbsSamplerUnigrams.prepareDistribution(K = K, word = word, alpha = alpha,
+            beta = beta, V = V, d = d, wordsInTopics = wordsInTopics, sumOfWordsInTopic = sumOfWordsInTopic,
+            topicsInDocs = topicsInDocs)
 
           val mult = Multinomial(DenseVector(distribution))
 

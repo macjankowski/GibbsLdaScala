@@ -82,6 +82,13 @@ class TestLda extends FunSuite with Matchers {
       println(s"phi = ${parameters.phi(0).mkString(",")}")
       println(s"theta = ${parameters.theta(0).mkString(",")}")
       println(s"likelihood = ${parameters.likelihood}")
+
+      for(k <- (0 until K)){
+        println(s"Topic $k\n")
+        val topic = parameters.phi(k)
+        val topWords = topic.zipWithIndex.sortBy(- _._1).take(10).map{case (v,k) => dict(k)}
+        println(topWords.mkString(",")+"\n")
+      }
     }
   }
 
@@ -128,13 +135,13 @@ class TestLda extends FunSuite with Matchers {
 
     Profiler.profile("Gibbs Sampler - Bigrams") {
 
-      val burnDownPeriod = 10
       val alphaInit = (0 until K).map(i => 50d / K).toArray
 
       val algParams = AlgorithmParameters(
-        burnDownPeriod = burnDownPeriod,
+        burnDownPeriod = 10,
         lag = 1,
-        noSamples = 1
+        noSamples = 1,
+        noSamplesForAlpha = 50
       )
 
       println(alphaInit.mkString(","))
