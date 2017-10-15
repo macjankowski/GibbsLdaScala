@@ -3,7 +3,7 @@ package pl.mjankowski
 import org.scalatest.{FunSuite, Matchers}
 import pl.mjankowski.inference._
 import pl.mjankowski.inference.bigrams.{GibbsSamplingBigrams, Hyperparameters, OutputData, Statistics}
-import pl.mjankowski.inference.unigrams.{GibbsSamplingUnigrams, ParametersUnigrams}
+import pl.mjankowski.inference.unigrams.{GibbsUnigramsEstimator, ParametersUnigrams, UnigramsStatistics}
 
 /**
   *
@@ -15,7 +15,7 @@ class TestLda extends FunSuite with Matchers {
   val filePath = "/Users/mjankowski/doc/workspace/data/reducedData.csv"
   val K = 10
 
-  val estimatorUnigrams: GibbsSamplingUnigrams = new GibbsSamplingUnigrams
+  val estimatorUnigrams: GibbsUnigramsEstimator = new GibbsUnigramsEstimator
   val estimatorBigrams: GibbsSamplingBigrams = new GibbsSamplingBigrams
 
   // load data
@@ -41,14 +41,17 @@ class TestLda extends FunSuite with Matchers {
 
   test("Init method should correctly initialize parameters") {
 
-    val stats = estimatorUnigrams.init(labelless, dictSize, K)
-    println(s"gibbsIterations = ${stats.gibbsIterations}")
+    val in = InputData(data = labelless,
+      V = dictSize,
+      K = 10,
+      M = labelless.length,
+      dict = dict)
+
+    val stats = UnigramsStatistics.create(in = in)
 
     val allWordsCount = labelless.map(l => l.length).sum
 
     // CONDITIONS CHECKINGS
-
-    allWordsCount should be(stats.gibbsIterations)
 
     stats.wordsInTopics.map(l => l.sum).sum should be(allWordsCount)
 
@@ -60,37 +63,7 @@ class TestLda extends FunSuite with Matchers {
 
   }
 
-  test("infer unigram topic model method") {
 
-    Profiler.profile("Gibbs Sampler") {
-
-      val burnDownPeriod = 1000
-
-      val parameters: ParametersUnigrams = estimatorUnigrams.inferParameters(
-        data = labelless,
-        V = dictSize,
-        K = 10,
-        M = labelless.length,
-        burnDownPeriod = burnDownPeriod,
-        lag = 100,
-        noSamples = 10,
-        alpha = 50d / K,
-        beta = 0.1,
-        dict
-      )
-
-      println(s"phi = ${parameters.phi(0).mkString(",")}")
-      println(s"theta = ${parameters.theta(0).mkString(",")}")
-      println(s"likelihood = ${parameters.likelihood}")
-
-      for(k <- (0 until K)){
-        println(s"Topic $k\n")
-        val topic = parameters.phi(k)
-        val topWords = topic.zipWithIndex.sortBy(- _._1).take(10).map{case (v,k) => dict(k)}
-        println(topWords.mkString(",")+"\n")
-      }
-    }
-  }
 
   test("Init for bigrams method should correctly initialize parameters") {
 
@@ -157,7 +130,8 @@ class TestLda extends FunSuite with Matchers {
       val h: Hyperparameters = new Hyperparameters(
         alpha = alphaInit,
         alphaSum = alphaInit.sum,
-        beta = 0.1
+        beta = 0.1,
+        K=K
       )
 
       val parameters: OutputData = estimatorBigrams.inferParameters(

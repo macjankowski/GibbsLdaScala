@@ -3,7 +3,7 @@ package pl.mjankowski
 import org.scalatest.{FunSuite, Matchers}
 import pl.mjankowski.inference.{AlgorithmParameters, InputData}
 import pl.mjankowski.inference.bigrams._
-import pl.mjankowski.inference.unigrams.{GibbsSamplingUnigrams, ParametersUnigrams}
+import pl.mjankowski.inference.unigrams.{GibbsUnigramsEstimator, ParametersUnigrams}
 
 /**
   *
@@ -30,7 +30,7 @@ class TestBigrams extends FunSuite with Matchers {
         burnDownPeriod = burnDownPeriod,
         lag = 1,
         noSamples = 1,
-        noSamplesForAlpha = 50
+        noSamplesForAlpha = 10
       )
 
       println(alphaInit.mkString(","))
@@ -46,7 +46,8 @@ class TestBigrams extends FunSuite with Matchers {
       val h: Hyperparameters = new Hyperparameters(
         alpha = alphaInit,
         alphaSum = alphaInit.sum,
-        beta = 0.1
+        beta = 0.1,
+        K=K
       )
 
       val parameters: OutputData = estimatorBigrams.inferParameters(
@@ -93,7 +94,8 @@ class TestBigrams extends FunSuite with Matchers {
     val h: Hyperparameters = new Hyperparameters(
       alpha = alphaInit,
       alphaSum = alphaInit.sum,
-      beta = 0.1
+      beta = 0.1,
+      K=K
     )
 
     val distribution = GibbsSamplerBigrams.prepareDistribution(

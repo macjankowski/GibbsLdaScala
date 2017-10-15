@@ -3,8 +3,6 @@ package pl.mjankowski.inference.bigrams
 import pl.mjankowski.Profiler
 import pl.mjankowski.inference.{AlgorithmParameters, Estimator, InputData}
 
-import scala.collection.mutable.ListBuffer
-
 
 /**
   *
@@ -34,25 +32,21 @@ class GibbsSamplingBigrams extends Estimator {
     var samplingCounter = 0
     while (samplingCounter < 100) {
 
-      val interStatsList = ListBuffer[Statistics]()
       (0 until algParams.noSamplesForAlpha).foreach { i =>
         println(s"samplingCounter = $samplingCounter, i=$i")
         GibbsSamplerBigrams.gibbsSingleIter(in = inputData, s = stats, h = hyperparameters)
 
         if (i % 5 == 0) {
-          interStatsList.append(stats.deepCopy)
+          hyperparameters.updateAlpha(stats, inputData.M, inputData.K)
         }
       }
 
-      val S: Array[Statistics] = interStatsList.toArray
-      hyperparameters.updateAlpha(S, inputData.M, inputData.K)
+      hyperparameters.acceptNewAlpha
       samplingCounter += 1
     }
 
     Parameters(in = inputData, s = stats, h = hyperparameters)
   }
-
-
 
 
 }

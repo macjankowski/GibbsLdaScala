@@ -3,7 +3,7 @@ package pl.mjankowski
 import org.scalatest.{FunSuite, Matchers}
 import pl.mjankowski.inference.bigrams.{GibbsSamplerBigrams, Hyperparameters, Statistics}
 import pl.mjankowski.inference.{AlgorithmParameters, InputData}
-import pl.mjankowski.inference.unigrams.{GibbsSamplerUnigrams, GibbsSamplingUnigrams, ParametersUnigrams}
+import pl.mjankowski.inference.unigrams.{GibbsSamplerUnigrams, GibbsUnigramsEstimator, ParametersUnigrams, UnigramsStatistics}
 
 /**
   *
@@ -11,31 +11,51 @@ import pl.mjankowski.inference.unigrams.{GibbsSamplerUnigrams, GibbsSamplingUnig
   */
 class TestUnigrams extends FunSuite with Matchers {
 
-  val estimatorUnigrams: GibbsSamplingUnigrams = new GibbsSamplingUnigrams
+  val estimatorUnigrams: GibbsUnigramsEstimator = new GibbsUnigramsEstimator
 
 
-  test("Test Unigrams") {
+  test("Test Unigrams KOS") {
     val uciData: UciData = UciLoader.readUciData("/docword.kos.txt")
-
+    val metadata = uciData.metadata
     val data = NlpUtils.expandUciData(uciData.data)
     val dict = UciLoader.readUciDictionary("/vocab.kos.txt")
+    val K = 10
 
-    Profiler.profile("Gibbs Sampler") {
+    Profiler.profile("Training LDA using Unigrams") {
 
       val K = 10
-      val burnDownPeriod = 1000
+      val burnDownPeriod = 10
+      val alphaInit = (0 until K).map(i => 50d / K).toArray
+
+      val algParams = AlgorithmParameters(
+        burnDownPeriod = burnDownPeriod,
+        lag = 1,
+        noSamples = 1,
+        noSamplesForAlpha = 10
+      )
+
+      println(alphaInit.mkString(","))
+
+      val in: InputData = InputData(data = data,
+        V = metadata.V,
+        K = K,
+        M = metadata.M,
+        dict = dict)
+
+      val stats: UnigramsStatistics = UnigramsStatistics.create(in)
+
+      val h: Hyperparameters = new Hyperparameters(
+        alpha = alphaInit,
+        alphaSum = alphaInit.sum,
+        beta = 0.1,
+        K=K
+      )
 
       val parameters: ParametersUnigrams = estimatorUnigrams.inferParameters (
-        data = data,
-        V = uciData.metadata.V,
-        K = 10,
-        M = uciData.metadata.M,
-        burnDownPeriod = burnDownPeriod,
-        lag = 100,
-        noSamples = 10,
-        alpha = 50d / K,
-        beta = 0.1,
-        dict
+        in = in,
+        algParams = algParams,
+        h = h,
+        stats = stats
       )
 
       println(s"phi = ${parameters.phi(0).mkString(",")}")
@@ -73,14 +93,12 @@ class TestUnigrams extends FunSuite with Matchers {
     val h: Hyperparameters = new Hyperparameters(
       alpha = alphaInit,
       alphaSum = alphaInit.sum,
-      beta = 0.1
+      beta = 0.1,
+      K=K
     )
 
-    val stats = estimatorUnigrams.init(in.data, metadata.V, K)
-
-    val distribution = GibbsSamplerUnigrams.prepareDistribution(K = K, word = 1000, alpha = h.alphaSum,
-      beta = h.beta, V = metadata.V, d = 150, wordsInTopics = stats.wordsInTopics,
-      sumOfWordsInTopic = stats.sumOfWordsInTopic, topicsInDocs = stats.topicsInDocs)
+    val stats = UnigramsStatistics.create(in = in)
+    val distribution = GibbsSamplerUnigrams.prepareDistribution(in = in, s = stats, h = h, word = 1000, d = 150)
 
     distribution.sum should equal (1)
   }

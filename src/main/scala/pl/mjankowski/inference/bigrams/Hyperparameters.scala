@@ -9,12 +9,24 @@ import breeze.numerics.digamma
 class Hyperparameters(
                        var alpha: Array[Double],
                        var alphaSum: Double,
-                       var beta: Double
+                       var beta: Double,
+                       val K:Int
                      ) {
 
-  var tmpAlpha = alpha
+  var docSumDenom: Double = 0
+  var docSumNum: Array[Double] = Array.ofDim[Double](K)
 
-  def updateAlpha(stats: Array[Statistics], M: Int, K: Int) = {
+  def acceptNewAlpha = {
+    val newAlpha = (0 until K).map { k =>
+      alpha(k) * (docSumNum(k) / docSumDenom)
+    }.toArray
+
+    println(s"newAlpha = ${newAlpha.mkString(",")}")
+    alpha = newAlpha
+    alphaSum = newAlpha.sum
+  }
+
+  def updateAlpha(stats: Statistics, M: Int, K: Int) = {
 
     //    def kThElem(k: Int): Double = {
     //      val numerator = for {
@@ -73,13 +85,20 @@ class Hyperparameters(
     def sumForStatisticsDenom(stats: Array[Statistics]): Double =
       stats.map(s => sumForDocumentsDenom(s)).sum
 
-    val denom: Double = sumForStatisticsDenom(stats)
-    val newAlpha = (0 until K).map { k =>
-      alpha(k) * (sumForStatisticsNum(M, stats, k) / denom)
-    }.toArray
+    //    val denom: Double = sumForStatisticsDenom(stats)
+    //    val newAlpha = (0 until K).map { k =>
+    //      alpha(k) * (sumForStatisticsNum(M, stats, k) / denom)
+    //    }.toArray
 
-    println(s"newAlpha = ${newAlpha.mkString(",")}")
-    alpha = newAlpha
-    alphaSum = newAlpha.sum
+    var newDocSumDenom: Double = sumForDocumentsDenom(stats)
+    docSumDenom += newDocSumDenom
+
+    val newDocSumNum: Array[Double] = (0 until K).toArray.map(k => sumForDocumentsNum(M, stats, k))
+    docSumNum = newDocSumNum.zip(docSumNum).map { case (x, y) => x + y }
+
+
+    //    println(s"newAlpha = ${newAlpha.mkString(",")}")
+    //    alpha = newAlpha
+    //    alphaSum = newAlpha.sum
   }
 }
