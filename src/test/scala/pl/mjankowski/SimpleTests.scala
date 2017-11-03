@@ -77,4 +77,5 @@ class SimpleTests extends FunSuite {
     val l2: immutable.Seq[Int] = l.flatten
   }
 
+
 }

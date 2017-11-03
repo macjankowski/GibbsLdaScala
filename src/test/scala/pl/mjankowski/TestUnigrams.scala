@@ -19,7 +19,6 @@ class TestUnigrams extends FunSuite with Matchers {
     val metadata = uciData.metadata
     val data = NlpUtils.expandUciData(uciData.data)
     val dict = UciLoader.readUciDictionary("/vocab.kos.txt")
-    val K = 10
 
     Profiler.profile("Training LDA using Unigrams") {
 

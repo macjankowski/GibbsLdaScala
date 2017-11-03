@@ -38,6 +38,7 @@ class GibbsUnigramsEstimator extends Estimator {
     while (sampleCounter < algParams.noSamples * algParams.lag) {
       println(s"cunter = $sampleCounter")
 
+      GibbsSamplerUnigrams.gibbsSingleIter(in = in, stats = stats, h = h)
       //if(counter > burnDownPeriod &&  counter % lag == 0) {
       if(sampleCounter % 10 == 0){
         println(sampleCounter)
